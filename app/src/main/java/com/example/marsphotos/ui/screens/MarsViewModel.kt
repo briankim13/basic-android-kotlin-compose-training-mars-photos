@@ -19,10 +19,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+
+// This project includes
+import com.example.marsphotos.network.MarsApi
+import java.io.IOException
+
+// sealed make sure this is all the enumerations. So I don't have to write a case to handle 'else'
+sealed interface MarsUiState { // How is the interface defined here returned below? Is this like enum?
+    data class Success(val photos: String) : MarsUiState
+    object Error : MarsUiState
+    object Loading : MarsUiState
+}
 
 class MarsViewModel : ViewModel() {
     /** The mutable State that stores the status of the most recent request */
-    var marsUiState: String by mutableStateOf("")
+    var marsUiState: MarsUiState by mutableStateOf(MarsUiState.Loading)
         private set
 
     /**
@@ -37,6 +50,13 @@ class MarsViewModel : ViewModel() {
      * [MarsPhoto] [List] [MutableList].
      */
     fun getMarsPhotos() {
-        marsUiState = "Set the Mars API status response here!"
+        viewModelScope.launch { // launch coroutine
+            marsUiState = try {
+                val listResult = MarsApi.retrofitService.getPhotos() // it uses singleton of MarsApi
+                MarsUiState.Success(listResult)
+            } catch (e: IOException) {
+                MarsUiState.Error
+            }
+        }
     }
 }
